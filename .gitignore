@@ -13,3 +13,7 @@ __pycache__/
 
 # Temporary files
 *.log
+
+# Phase 1 banking data
+phase1/data/*.json
+
