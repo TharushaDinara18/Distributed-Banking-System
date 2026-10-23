@@ -3,10 +3,11 @@ import Pyro5.api
 import hashlib
 import hmac
 import secrets
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
 
 @Pyro5.api.expose
+
 class BankApplicationServer:
 
     def __init__(self):
@@ -65,6 +66,7 @@ class BankApplicationServer:
         return "BAS server is running"
 
     def login(self, username, password):
+
         username = username.strip().lower()
         user = self.users.get(username)
 
@@ -79,6 +81,7 @@ class BankApplicationServer:
         entered_hash = self.hash_password(
             password, user["salt"]
         )
+
 
         if not hmac.compare_digest(
             entered_hash, user["password_hash"]
@@ -123,6 +126,107 @@ class BankApplicationServer:
             "success": True,
             "account_id": account_id,
             "balance": str(account["balance"])
+        }
+
+    def calculate_fee(self, token, amount_text):
+
+        # Check if the user is logged in
+        username = self.sessions.get(token)
+
+        if username is None:
+            return {
+                "success": False,
+                "message": "Unauthorized request"
+            }
+
+        # Validate the transfer amount
+        try:
+            amount = Decimal(amount_text.strip())
+
+            if not amount.is_finite():
+                return {
+                    "success": False,
+                    "message": "Invalid transfer amount"
+                }
+
+            if amount <= Decimal("0.00"):
+                return {
+                    "success": False,
+                    "message": "Amount must be greater than zero"
+                }
+
+            if amount.as_tuple().exponent < -2:
+                return {
+                    "success": False,
+                    "message": "Amount must have at most 2 decimal places"
+                }
+
+            amount = amount.quantize(Decimal("0.01"))
+
+        except (InvalidOperation, ValueError, AttributeError):
+            return {
+                "success": False,
+                "message": "Invalid transfer amount"
+            }
+
+        # Select the fee tier based on the amount
+        if amount <= Decimal("2000.00"):
+            tier = "Free"
+            rate = Decimal("0.00")
+            cap = None
+
+        elif amount <= Decimal("10000.00"):
+            tier = "Entry"
+            rate = Decimal("0.0025")
+            cap = Decimal("20.00")
+
+        elif amount <= Decimal("20000.00"):
+            tier = "Mid"
+            rate = Decimal("0.0020")
+            cap = Decimal("25.00")
+
+        elif amount <= Decimal("50000.00"):
+            tier = "Upper-mid"
+            rate = Decimal("0.00125")
+            cap = Decimal("40.00")
+
+        elif amount <= Decimal("100000.00"):
+            tier = "High"
+            rate = Decimal("0.0008")
+            cap = Decimal("60.00")
+
+        else:
+            tier = "Top"
+            rate = Decimal("0.0006")
+            cap = Decimal("250.00")
+
+        # Calculate the raw fee
+        raw_fee = amount * rate
+
+        # Round half-up to 2 decimal places
+        fee = raw_fee.quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP
+            
+        )
+
+        # Apply the maximum fee for the selected tier
+        if cap is not None and fee > cap:
+            fee = cap
+
+        # The sender pays the amount and the fee
+        total_debit = amount + fee
+
+        print("Fee calculated for:", username)
+        print("Transfer amount:", amount)
+        print("Transfer fee:", fee)
+
+        return {
+            "success": True,
+            "tier": tier,
+            "amount": str(amount),
+            "fee": str(fee),
+            "total_debit": str(total_debit)
         }
 
 
