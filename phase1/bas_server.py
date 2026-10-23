@@ -3,6 +3,7 @@ import Pyro5.api
 import hashlib
 import hmac
 import secrets
+from decimal import Decimal
 
 
 @Pyro5.api.expose
@@ -12,25 +13,43 @@ class BankApplicationServer:
         self.users = {}
         self.sessions = {}
 
-        # Create mock users for testing
+        # Mock users for testing
         mock_users = {
+
             "kasun": {
                 "full_name": "Kasun Perera",
-                "password": "kasun123"
+                "password": "kasun123",
+                "account_id": "ACC001"
             },
+
+
             "nimal": {
                 "full_name": "Nimal Fernando",
-                "password": "nimal123"
+                "password": "nimal123",
+                "account_id": "ACC002"
+            }
+        }
+
+        # Create mock account balances
+        self.accounts = {
+            "ACC001": {
+                "balance": Decimal("150000.00")
+            },
+            "ACC002": {
+                "balance": Decimal("25000.00")
             }
         }
 
         # Store salted password hashes
         for username, details in mock_users.items():
             salt = secrets.token_bytes(16)
-            password_hash = self.hash_password(details["password"], salt)
+            password_hash = self.hash_password(
+                details["password"], salt
+            )
 
             self.users[username] = {
                 "full_name": details["full_name"],
+                "account_id": details["account_id"],
                 "salt": salt,
                 "password_hash": password_hash
             }
@@ -39,8 +58,7 @@ class BankApplicationServer:
         return hashlib.pbkdf2_hmac(
             "sha256",
             password.encode("utf-8"),
-            salt,
-            200000
+            salt, 200000
         )
 
     def ping(self):
@@ -50,7 +68,7 @@ class BankApplicationServer:
         username = username.strip().lower()
         user = self.users.get(username)
 
-        # Check if the username exists
+        # Check the username and password
         if user is None:
             print("Failed login attempt:", username)
             return {
@@ -58,10 +76,13 @@ class BankApplicationServer:
                 "message": "Invalid credentials"
             }
 
-        # Verify the entered password
-        entered_hash = self.hash_password(password, user["salt"])
+        entered_hash = self.hash_password(
+            password, user["salt"]
+        )
 
-        if not hmac.compare_digest(entered_hash, user["password_hash"]):
+        if not hmac.compare_digest(
+            entered_hash, user["password_hash"]
+        ):
             print("Failed login attempt:", username)
             return {
                 "success": False,
@@ -81,13 +102,41 @@ class BankApplicationServer:
             "token": token
         }
 
+    def get_balance(self, token):
+
+        # Check if the session token is valid
+        username = self.sessions.get(token)
+
+        if username is None:
+            return {
+                "success": False,
+                "message": "Unauthorized request"
+            }
+
+        user = self.users[username]
+        account_id = user["account_id"]
+        account = self.accounts[account_id]
+
+        print("Balance requested by:", username)
+
+        return {
+            "success": True,
+            "account_id": account_id,
+            "balance": str(account["balance"])
+        }
+
 
 def main():
     server = BankApplicationServer()
 
     # Start the application server
-    with Pyro5.api.Daemon(host="127.0.0.1", port=9090) as daemon:
-        uri = daemon.register(server, objectId="bank.bas")
+    with Pyro5.api.Daemon(
+        host="127.0.0.1", port=9090
+    ) as daemon:
+
+        uri = daemon.register(
+            server, objectId="bank.bas"
+        )
 
         print("Bank Application Server started")
         print("Server URI:", uri)
@@ -98,3 +147,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
