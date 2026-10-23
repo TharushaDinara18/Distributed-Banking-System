@@ -1,9 +1,8 @@
-
 import Pyro5.api
 
-from decimal import Decimal
 from banking.auth import AuthenticationService
 from banking.fees import calculate_transfer_fee
+from banking.storage import BankStorage
 
 
 @Pyro5.api.expose
@@ -11,31 +10,28 @@ class BankApplicationServer:
 
     def __init__(self):
 
-        # Initialize the authentication service
+        # Initialize authentication service
         self.auth = AuthenticationService()
 
-        # Create mock account balances
-        self.accounts = {
-            "ACC001": {
-                "balance": Decimal("150000.00")
-            },
+        # Initialize banking data storage
+        self.storage = BankStorage()
 
-            "ACC002": {
-                "balance": Decimal("25000.00")
-            }
-        }
+        # Load accounts and saved transaction data
+        self.accounts, self.transfers, self.requests = (
+            self.storage.load()
+        )
 
     def ping(self):
         return "BAS server is running"
 
     def login(self, username, password):
 
-        # Authenticate the user using the auth module
+        # Authenticate the user
         return self.auth.login(username, password)
 
     def get_balance(self, token):
 
-        # Check if the session token is valid
+        # Check if the user is logged in
         username = self.auth.get_username(token)
 
         if username is None:
@@ -83,11 +79,13 @@ def main():
 
     # Start the application server
     with Pyro5.api.Daemon(
-        host="127.0.0.1", port=9090
+        host="127.0.0.1",
+        port=9090
     ) as daemon:
 
         uri = daemon.register(
-            server, objectId="bank.bas"
+            server,
+            objectId="bank.bas"
         )
 
         print("Bank Application Server started")
