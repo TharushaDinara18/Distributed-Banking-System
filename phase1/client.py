@@ -25,8 +25,7 @@ def show_balance(bank, token):
 
     if result["success"]:
 
-        print()
-        print("=== Account Details ===")
+        print("\n=== Account Details ===")
         print("Account ID:", result["account_id"])
         print(
             "Current Balance:",
@@ -142,8 +141,7 @@ def main():
             # Display the banking menu
             while True:
 
-                print()
-                print("=== Banking Menu ===")
+                print("\n=== Banking Menu ===\n")
                 print("1. View Balance")
                 print("2. Calculate Transfer Fee")
                 print("3. Transfer Money")
@@ -151,8 +149,7 @@ def main():
                 print("5. Retry Last Transfer")
                 print("0. Exit")
 
-                print()
-                choice = input("Choose an option: ").strip()
+                choice = input("\nChoose an option: ").strip()
 
                 if choice == "1":
 
@@ -239,6 +236,7 @@ def main():
                     print("Invalid menu option")
 
     except Pyro5.errors.PyroError as error:
+
         print()
         print("Could not communicate with the bank server")
         print(error)

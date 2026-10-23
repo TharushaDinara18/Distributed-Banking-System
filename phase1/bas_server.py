@@ -5,9 +5,10 @@ from banking.fees import calculate_transfer_fee
 from banking.storage import BankStorage
 from banking.service import BankingService
 
-
 @Pyro5.api.expose
+
 class BankApplicationServer:
+
 
     def __init__(self):
 
@@ -20,13 +21,16 @@ class BankApplicationServer:
         # Initialize banking operations
         self.service = BankingService(self.storage)
 
+
     def ping(self):
         return "BAS server is running"
+
 
     def login(self, username, password):
 
         # Authenticate the user
         return self.auth.login(username, password)
+
 
     def get_balance(self, token):
 
@@ -49,6 +53,7 @@ class BankApplicationServer:
 
         return result
 
+
     def calculate_fee(self, token, amount_text):
 
         # Check if the user is logged in
@@ -69,6 +74,7 @@ class BankApplicationServer:
             print("Transfer fee:", result["fee"])
 
         return result
+
 
     def transfer_funds(
         self, token, recipient_id,
@@ -96,6 +102,7 @@ class BankApplicationServer:
             request_id
         )
 
+
     def get_transfer_status(self, token, transfer_id):
 
         # Check if the user is logged in
@@ -122,7 +129,7 @@ def main():
 
     # Start the application server
     with Pyro5.api.Daemon(
-        
+
         host="127.0.0.1",
         port=9090
 
