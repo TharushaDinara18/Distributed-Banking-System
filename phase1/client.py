@@ -1,4 +1,3 @@
-
 import Pyro5.api
 import Pyro5.errors
 import getpass
@@ -37,6 +36,7 @@ def main():
                     print()
                     print("=== Account Details ===")
                     print(
+
                         "Account ID:",
                         balance_result["account_id"]
                     )
@@ -77,9 +77,7 @@ def main():
                     print()
                     print("=== Fee Details ===")
                     print("Fee Tier:", fee_result["tier"])
-                    print(
-                        f"Transfer Amount: ${transfer_amount:,.2f}"
-                    )
+                    print(f"Transfer Amount: ${transfer_amount:,.2f}")
                     print(f"Transfer Fee: ${fee:,.2f}")
                     print(f"Total Debit: ${total_debit:,.2f}")
 

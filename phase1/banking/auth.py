@@ -1,4 +1,3 @@
-
 import hashlib
 import hmac
 import secrets
@@ -28,7 +27,7 @@ class AuthenticationService:
 
         # Store salted password hashes
         for username, details in mock_users.items():
-            
+
             salt = secrets.token_bytes(16)
 
             password_hash = self.hash_password(

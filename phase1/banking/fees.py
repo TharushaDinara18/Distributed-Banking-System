@@ -1,6 +1,5 @@
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
-
 def calculate_transfer_fee(amount_text):
 
     # Validate the transfer amount
@@ -38,34 +37,35 @@ def calculate_transfer_fee(amount_text):
 
     # Select the fee tier based on the amount
     if amount <= Decimal("2000.00"):
-        tier = "Free"
+        tier = "Free Tier"
         rate = Decimal("0.00")
         cap = None
 
     elif amount <= Decimal("10000.00"):
-        tier = "Entry"
+        tier = "Entry Tier"
         rate = Decimal("0.0025")
         cap = Decimal("20.00")
 
     elif amount <= Decimal("20000.00"):
-        tier = "Mid"
+        tier = "Mid Tier"
         rate = Decimal("0.0020")
         cap = Decimal("25.00")
 
     elif amount <= Decimal("50000.00"):
-        tier = "Upper-mid"
+        tier = "Upper-mid Tier"
         rate = Decimal("0.00125")
         cap = Decimal("40.00")
 
     elif amount <= Decimal("100000.00"):
-        tier = "High"
+        tier = "High Tier"
         rate = Decimal("0.0008")
         cap = Decimal("60.00")
 
     else:
-        tier = "Top"
+        tier = "Top Tier"
         rate = Decimal("0.0006")
         cap = Decimal("250.00")
+
 
     # Calculate the raw fee
     raw_fee = amount * rate
