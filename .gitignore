@@ -1,3 +1,4 @@
+
 # Python environment
 .venv/
 
@@ -17,3 +18,5 @@ __pycache__/
 # Phase 1 banking data
 phase1/data/*.json
 
+# Phase 2 SQLite database
+phase2/data/
