@@ -1,10 +1,10 @@
-
 import Pyro5.api
 
 from database.storage import DatabaseStorage
-
+from database.transactions import TransactionStorage
 
 @Pyro5.api.expose
+
 class BankDatabaseServer:
 
     def __init__(self):
@@ -13,6 +13,9 @@ class BankDatabaseServer:
         self.storage = DatabaseStorage()
         self.storage.initialize()
 
+        # Initialize transaction processing
+        self.transactions = TransactionStorage(self.storage)
+
     def ping(self):
         return "BDB server is running"
 
@@ -20,6 +23,21 @@ class BankDatabaseServer:
 
         # Request the account balance from SQLite
         return self.storage.get_balance(account_id)
+
+    def transfer_funds(
+        self, sender_id, recipient_id,
+        amount_text, fee_text, reference, request_id
+    ):
+
+        # Process the transfer using SQLite
+        return self.transactions.transfer(
+            sender_id,
+            recipient_id,
+            amount_text,
+            fee_text,
+            reference,
+            request_id
+        )
 
 
 def main():
@@ -46,3 +64,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
