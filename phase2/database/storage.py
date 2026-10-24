@@ -1,7 +1,9 @@
+
 import sqlite3
 
 from pathlib import Path
 from contextlib import closing
+from decimal import Decimal
 
 
 class DatabaseStorage:
@@ -92,6 +94,34 @@ class DatabaseStorage:
                 """, mock_accounts)
 
         print("SQLite database initialized")
+
+    def get_balance(self, account_id):
+
+        # Find the account in SQLite
+        with closing(self.connect()) as connection:
+            result = connection.execute(
+                """
+                SELECT balance_cents
+                FROM accounts
+                WHERE account_id = ?
+                """,
+                (account_id,)
+            ).fetchone()
+
+        if result is None:
+            return {
+                "success": False,
+                "message": "Account not found"
+            }
+
+        # Convert cents into dollars
+        balance = Decimal(result[0]) / Decimal("100")
+
+        return {
+            "success": True,
+            "account_id": account_id,
+            "balance": f"{balance:.2f}"
+        }
 
 
 if __name__ == "__main__":

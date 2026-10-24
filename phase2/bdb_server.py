@@ -16,6 +16,11 @@ class BankDatabaseServer:
     def ping(self):
         return "BDB server is running"
 
+    def get_balance(self, account_id):
+
+        # Request the account balance from SQLite
+        return self.storage.get_balance(account_id)
+
 
 def main():
 
