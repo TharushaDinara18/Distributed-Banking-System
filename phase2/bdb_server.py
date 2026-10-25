@@ -19,6 +19,14 @@ class BankDatabaseServer:
     def ping(self):
         return "BDB server is running"
 
+    def authenticate_user(self, username, password):
+
+        # Check the user's credentials in SQLite
+        return self.storage.authenticate_user(
+            username,
+            password
+    )
+
     def get_balance(self, account_id):
 
         # Request the account balance from SQLite

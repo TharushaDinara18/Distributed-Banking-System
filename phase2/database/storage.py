@@ -1,10 +1,11 @@
-
 import sqlite3
+import hashlib
+import hmac
+import secrets
 
 from pathlib import Path
 from contextlib import closing
 from decimal import Decimal
-
 
 class DatabaseStorage:
 
@@ -93,7 +94,139 @@ class DatabaseStorage:
                     VALUES (?, ?, ?)
                 """, mock_accounts)
 
+                # Store mock users and password hashes
+                connection.execute("""
+                    CREATE TABLE IF NOT EXISTS users (
+                        username TEXT PRIMARY KEY,
+                        full_name TEXT NOT NULL,
+                        account_id TEXT NOT NULL UNIQUE,
+                        salt_hex TEXT NOT NULL,
+                        password_hash_hex TEXT NOT NULL,
+                        FOREIGN KEY (account_id)
+                            REFERENCES accounts(account_id)
+                    )
+                """)
+
+                # Mock users for testing
+                mock_users = [
+                    (
+                        "kasun",
+                        "Kasun Perera",
+                        "ACC001",
+                        "kasun123"
+                    ),
+                    (
+                        "nimal",
+                        "Nimal Fernando",
+                        "ACC002",
+                        "nimal123"
+                    )
+                ]
+
+                # Add users without replacing existing records
+                for username, full_name, account_id, password in mock_users:
+
+                    existing = connection.execute("""
+                        SELECT username
+                        FROM users
+                        WHERE username = ?
+                    """, (username,)).fetchone()
+
+                    if existing is not None:
+                        continue
+
+                    # Generate a random salt
+                    salt = secrets.token_bytes(16)
+
+                    # Create a salted password hash
+                    password_hash = hashlib.pbkdf2_hmac(
+                        "sha256",
+                        password.encode("utf-8"),
+                        salt,
+                        200000
+                    )
+
+                    # Save the user in SQLite
+                    connection.execute("""
+                        INSERT INTO users (
+                            username,
+                            full_name,
+                            account_id,
+                            salt_hex,
+                            password_hash_hex
+                        )
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        username,
+                        full_name,
+                        account_id,
+                        salt.hex(),
+                        password_hash.hex()
+                    ))
+
         print("SQLite database initialized")
+
+    def authenticate_user(self, username, password):
+
+        # Validate the login details
+        if not isinstance(username, str) or not isinstance(
+            password, str
+        ):
+            return {
+                "success": False,
+                "message": "Invalid credentials"
+            }
+
+        username = username.strip().lower()
+
+        # Find the user in SQLite
+        with closing(self.connect()) as connection:
+            user = connection.execute("""
+                SELECT
+                    full_name,
+                    account_id,
+                    salt_hex,
+                    password_hash_hex
+                FROM users
+                WHERE username = ?
+            """, (username,)).fetchone()
+
+        if user is None:
+            return {
+                "success": False,
+                "message": "Invalid credentials"
+            }
+
+        full_name, account_id, salt_hex, hash_hex = user
+
+        # Hash the entered password using the saved salt
+        salt = bytes.fromhex(salt_hex)
+
+        entered_hash = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt,
+            200000
+        )
+
+        saved_hash = bytes.fromhex(hash_hex)
+
+        # Compare the password hashes
+        if not hmac.compare_digest(
+            entered_hash,
+            saved_hash
+        ):
+            return {
+                "success": False,
+                "message": "Invalid credentials"
+            }
+
+        return {
+            "success": True,
+            "username": username,
+            "full_name": full_name,
+            "account_id": account_id
+        }
 
     def get_balance(self, account_id):
 

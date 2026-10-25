@@ -1,7 +1,7 @@
 import Pyro5.api
 import Pyro5.errors
+import secrets
 
-from banking.auth import AuthenticationService
 from banking.fees import calculate_transfer_fee
 
 @Pyro5.api.expose
@@ -10,8 +10,8 @@ class BankApplicationServer:
 
     def __init__(self):
 
-        # Initialize authentication
-        self.auth = AuthenticationService()
+        # Store active customer sessions
+        self.sessions = {}
 
         # Address of the Bank Database Server
         self.bdb_uri = "PYRO:bank.bdb@127.0.0.1:9091"
@@ -19,24 +19,69 @@ class BankApplicationServer:
     def ping(self):
         return "BAS server is running"
 
+    def _get_session(self, token):
+
+        # Check if the session token is valid
+        if not isinstance(token, str):
+            return None
+
+        return self.sessions.get(token)
+
     def login(self, username, password):
 
-        # Authenticate the customer
-        return self.auth.login(username, password)
+        try:
+
+            # Verify login details through BDB
+            with Pyro5.api.Proxy(self.bdb_uri) as database:
+                result = database.authenticate_user(
+                    username,
+                    password
+                )
+
+        except (Pyro5.errors.PyroError, OSError):
+            return {
+                "success": False,
+                "message": "Database server unavailable"
+            }
+
+        if not result["success"]:
+            print("Failed login attempt:", username)
+
+            return {
+                "success": False,
+                "message": "Invalid credentials"
+            }
+
+        # Generate a session token
+        token = secrets.token_urlsafe(32)
+
+        # Save the logged-in customer's details
+        self.sessions[token] = {
+            "username": result["username"],
+            "account_id": result["account_id"]
+        }
+
+        print("User logged in:", result["username"])
+
+        return {
+            "success": True,
+            "message": "Login successful",
+            "full_name": result["full_name"],
+            "token": token
+        }
 
     def get_balance(self, token):
 
         # Check if the user is logged in
-        username = self.auth.get_username(token)
+        session = self._get_session(token)
 
-        if username is None:
+        if session is None:
             return {
                 "success": False,
                 "message": "Unauthorized request"
             }
 
-        # Find the account linked to the customer
-        account_id = self.auth.get_account_id(username)
+        account_id = session["account_id"]
 
         try:
 
@@ -45,7 +90,10 @@ class BankApplicationServer:
                 result = database.get_balance(account_id)
 
             if result["success"]:
-                print("Balance requested by:", username)
+                print(
+                    "Balance requested by:",
+                    session["username"]
+                )
 
             return result
 
@@ -58,9 +106,9 @@ class BankApplicationServer:
     def calculate_fee(self, token, amount_text):
 
         # Check if the user is logged in
-        username = self.auth.get_username(token)
+        session = self._get_session(token)
 
-        if username is None:
+        if session is None:
             return {
                 "success": False,
                 "message": "Unauthorized request"
@@ -70,7 +118,10 @@ class BankApplicationServer:
         result = calculate_transfer_fee(amount_text)
 
         if result["success"]:
-            print("Fee calculated for:", username)
+            print(
+                "Fee calculated for:",
+                session["username"]
+            )
             print("Transfer amount:", result["amount"])
             print("Transfer fee:", result["fee"])
 
@@ -82,16 +133,16 @@ class BankApplicationServer:
     ):
 
         # Check if the user is logged in
-        username = self.auth.get_username(token)
+        session = self._get_session(token)
 
-        if username is None:
+        if session is None:
             return {
                 "success": False,
                 "message": "Unauthorized request"
             }
 
         # Get the sender's account ID
-        sender_id = self.auth.get_account_id(username)
+        sender_id = session["account_id"]
 
         # Calculate and validate the transfer fee
         fee_result = calculate_transfer_fee(amount_text)
@@ -112,7 +163,10 @@ class BankApplicationServer:
                     request_id
                 )
 
-            print("Transfer requested by:", username)
+            print(
+                "Transfer requested by:",
+                session["username"]
+            )
 
             return result
 
@@ -128,16 +182,15 @@ class BankApplicationServer:
     def get_transfer_status(self, token, transfer_id):
 
         # Check if the user is logged in
-        username = self.auth.get_username(token)
+        session = self._get_session(token)
 
-        if username is None:
+        if session is None:
             return {
                 "success": False,
                 "message": "Unauthorized request"
             }
 
-        # Find the account linked to the customer
-        account_id = self.auth.get_account_id(username)
+        account_id = session["account_id"]
 
         try:
 
@@ -148,7 +201,10 @@ class BankApplicationServer:
                     transfer_id
                 )
 
-            print("Transfer status requested by:", username)
+            print(
+                "Transfer status requested by:",
+                session["username"]
+            )
 
             return result
 
