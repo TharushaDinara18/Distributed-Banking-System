@@ -1,0 +1,12 @@
+id,transfer_id,event,details,created_at
+1,69a85b4ca4d64a17b2dd456b1b96f4f2,COMPLETED,Transfer completed,2026-10-24T22:53:41+00:00
+2,338b72edf036452f888a9a156255e10c,COMPLETED,Transfer completed,2026-10-24T22:55:14+00:00
+3,f8f27d5da3484b55824a6c906add13b0,FAILED,Insufficient funds,2026-10-24T22:56:18+00:00
+4,ce5464f9345546e993c9e020361ac9b3,FAILED,Recipient account not found,2026-10-24T22:57:29+00:00
+5,25c843367def45cdb1d9567aee07a3a7,COMPLETED,Transfer completed,2026-10-25T00:21:12+00:00
+6,b3ffbe0f1ef7436486093b9726e3ff12,FAILED,Recipient account not found,2026-10-25T01:07:02+00:00
+7,3dffcfba19da40f6a501b01dea03a2aa,FAILED,Recipient account not found,2026-10-25T01:09:39+00:00
+8,2109b9886b024e0ab3d94467f812ca02,FAILED,Recipient account not found,2026-10-25T01:13:08+00:00
+9,0f46c317ac9344cebcc4ae308a392a4e,FAILED,Recipient account not found,2026-10-25T01:34:40+00:00
+10,29107c4083d145b797f42bc631868d6f,COMPLETED,Transfer completed,2026-10-25T01:36:18+00:00
+11,62f1e1a86c11461fa65f84ac5e6544d5,COMPLETED,Transfer completed,2026-10-25T01:40:01+00:00
