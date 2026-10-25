@@ -39,6 +39,14 @@ class BankDatabaseServer:
             request_id
         )
 
+    def get_transfer_status(self, account_id, transfer_id):
+
+        # Retrieve a previous transfer from SQLite
+        return self.transactions.get_transfer_status(
+            account_id,
+            transfer_id
+        )
+
 
 def main():
 

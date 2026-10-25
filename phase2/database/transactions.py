@@ -1,3 +1,4 @@
+
 import sqlite3
 import uuid
 
@@ -41,6 +42,7 @@ class TransactionStorage:
 
     def result(self, record, repeated=False):
 
+        # Prepare the transfer result
         return {
             "success": record["status"] == "COMPLETED",
             "transfer_id": record["transfer_id"],
@@ -64,7 +66,10 @@ class TransactionStorage:
         )
 
         if not all(isinstance(value, str) for value in values):
-            return {"success": False, "message": "Invalid request"}
+            return {
+                "success": False,
+                "message": "Invalid request"
+            }
 
         sender_id = sender_id.strip().upper()
         recipient_id = recipient_id.strip().upper()
@@ -72,24 +77,36 @@ class TransactionStorage:
         request_id = request_id.strip()
 
         if not request_id or len(request_id) > 100:
-            return {"success": False, "message": "Invalid request ID"}
+            return {
+                "success": False,
+                "message": "Invalid request ID"
+            }
 
         if len(reference) > 100:
-            return {"success": False, "message": "Reference is too long"}
+            return {
+                "success": False,
+                "message": "Reference is too long"
+            }
 
         try:
             amount = self.to_cents(amount_text)
             fee = self.to_cents(fee_text, allow_zero=True)
 
         except ValueError as error:
-            return {"success": False, "message": str(error)}
+            return {
+                "success": False,
+                "message": str(error)
+            }
 
         total = amount + fee
 
         if total > 9000000000000000:
-            return {"success": False, "message": "Amount too large"}
+            return {
+                "success": False,
+                "message": "Amount too large"
+            }
 
-        # SQLite handles the entire transfer in one transaction
+        # Process the transfer inside one SQLite transaction
         with closing(self.storage.connect()) as connection:
             connection.row_factory = sqlite3.Row
 
@@ -97,7 +114,7 @@ class TransactionStorage:
                 # Lock the database for the transaction
                 connection.execute("BEGIN IMMEDIATE")
 
-                # Check for an existing request
+                # Check if the request was already processed
                 previous = connection.execute("""
                     SELECT * FROM transfers
                     WHERE request_id = ?
@@ -121,14 +138,18 @@ class TransactionStorage:
                             "message": "Request ID already used"
                         }
 
-                    return self.result(previous, repeated=True)
+                    return self.result(
+                        previous,
+                        repeated=True
+                    )
 
-                # Retrieve both accounts
+                # Find the sender account
                 sender = connection.execute("""
                     SELECT balance_cents FROM accounts
                     WHERE account_id = ?
                 """, (sender_id,)).fetchone()
 
+                # Find the recipient account
                 recipient = connection.execute("""
                     SELECT balance_cents FROM accounts
                     WHERE account_id = ?
@@ -146,7 +167,7 @@ class TransactionStorage:
 
                 elif sender["balance_cents"] < total:
                     error = "Insufficient funds"
-                    
+
                 else:
                     error = None
 
@@ -155,21 +176,23 @@ class TransactionStorage:
 
                 if status == "COMPLETED":
 
-                    # Debit sender including the fee
+                    # Deduct the amount and fee from the sender
                     connection.execute("""
                         UPDATE accounts
                         SET balance_cents = balance_cents - ?
                         WHERE account_id = ?
                     """, (total, sender_id))
 
-                    # Credit recipient without the fee
+                    # Credit the amount to the recipient
                     connection.execute("""
                         UPDATE accounts
                         SET balance_cents = balance_cents + ?
                         WHERE account_id = ?
                     """, (amount, recipient_id))
 
+                # Generate the transfer ID and timestamp
                 transfer_id = uuid.uuid4().hex
+
                 created_at = datetime.now(
                     timezone.utc
                 ).isoformat(timespec="seconds")
@@ -199,11 +222,13 @@ class TransactionStorage:
                     )
                     VALUES (?, ?, ?, ?)
                 """, (
-                    transfer_id, status,
-                    message, created_at
+                    transfer_id,
+                    status,
+                    message,
+                    created_at
                 ))
 
-                # Commit all changes together
+                # Save all changes together
                 connection.commit()
 
                 record = {
@@ -221,10 +246,56 @@ class TransactionStorage:
 
             except sqlite3.Error:
 
-                # Cancel all database changes if anything fails
+                # Roll back changes if a database error occurs
                 connection.rollback()
 
                 return {
                     "success": False,
                     "message": "Database transaction failed"
                 }
+
+    def get_transfer_status(self, account_id, transfer_id):
+
+        # Check the request details
+        if not isinstance(account_id, str) or not isinstance(
+            transfer_id, str
+        ):
+            return {
+                "success": False,
+                "message": "Invalid request"
+            }
+
+        try:
+            # Find the transfer in SQLite
+            with closing(self.storage.connect()) as connection:
+                connection.row_factory = sqlite3.Row
+
+                record = connection.execute("""
+                    SELECT * FROM transfers
+                    WHERE transfer_id = ?
+                    AND (sender_id = ? OR recipient_id = ?)
+                """, (
+                    transfer_id.strip(),
+                    account_id,
+                    account_id
+                )).fetchone()
+
+        except sqlite3.Error:
+            return {
+                "success": False,
+                "message": "Database query failed"
+            }
+
+        if record is None:
+            return {
+                "success": False,
+                "message": "Transfer not found"
+            }
+
+        # Return the saved transfer details
+        result = self.result(record)
+
+        # A status lookup succeeds even for a failed transfer
+        result["success"] = True
+
+        return result
